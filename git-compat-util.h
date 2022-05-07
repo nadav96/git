@@ -393,12 +393,59 @@ static inline int git_offset_1st_component(const char *path)
 #endif
 
 #ifndef is_path_owned_by_current_user
+
+#ifdef __TANDEM
+#define ROOT_UID 65535
+#else
+#define ROOT_UID 0
+#endif
+
+/*
+ * this helper function overrides a ROOT_UID with the one provided by
+ * an environment variable, do not use unless the original user is
+ * root
+ * WARNING: this function assumes uid_t is unsigned, if you got here
+ *          because of a warning or a bug will need a patch and would
+ *          be nice if you let us know
+ */
+static inline void extract_id_from_env(const char *env, uid_t *id)
+{
+	const char *real_uid = getenv(env);
+
+	/* discard any empty values */
+	if (real_uid && *real_uid) {
+		char *endptr = NULL;
+		unsigned long env_id;
+
+		errno = 0;
+		env_id = strtoul(real_uid, &endptr, 10);
+		/*
+		 * env_id could underflow/overflow in the previous call
+		 * and if it will still fit in a long it will not report
+		 * it as error with ERANGE, instead silently using an
+		 * equivalent positive number that might be bogus.
+		 * if uid_t is narrower than long, it might not fit,
+		 * hence why we  need to check it against the maximum
+		 * possible uid_t value before accepting it.
+		 */
+		if (!*endptr && !errno && env_id <= (uid_t)-1)
+			*id = env_id;
+	}
+}
+
 static inline int is_path_owned_by_current_uid(const char *path)
 {
 	struct stat st;
+	uid_t euid;
+
 	if (lstat(path, &st))
 		return 0;
-	return st.st_uid == geteuid();
+
+	euid = geteuid();
+	if (euid == ROOT_UID)
+		extract_id_from_env("SUDO_UID", &euid);
+
+	return st.st_uid == euid;
 }
 
 #define is_path_owned_by_current_user is_path_owned_by_current_uid
