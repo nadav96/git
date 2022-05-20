@@ -2,7 +2,6 @@
 #define COLOR_H
 
 struct strbuf;
-
 /*
  * The maximum length of ANSI color sequence we would generate:
  * - leading ESC '['            2
