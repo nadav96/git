@@ -160,6 +160,7 @@
 /git-sparse-checkout
 /git-stage
 /git-stash
+/git-stashh
 /git-status
 /git-stripspace
 /git-submodule
