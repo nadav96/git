@@ -63,8 +63,7 @@ int find_unique(const char *choice, struct menu_stuff *menu_stuff)
 	len = strlen(choice);
 	switch (menu_stuff->type) {
 	default:
-		// Bad type of menu_stuff when parse choice
-		return ERROR_BAD_MENU;
+		die("Bad type of menu_stuff when parse choice");
 	case MENU_STUFF_TYPE_MENU_ITEM:
 
 		menu_item = (struct menu_item *)menu_stuff->stuff;
@@ -196,20 +195,238 @@ static int parse_choice(struct menu_stuff *menu_stuff,
 	return nr;
 }
 
+static void pretty_print_menus(struct string_list *menu_list)
+{
+	unsigned int local_colopts = 0;
+	struct column_options copts;
+
+	local_colopts = COL_ENABLED | COL_ROW;
+	memset(&copts, 0, sizeof(copts));
+	copts.indent = "  ";
+	copts.padding = 2;
+	print_columns(menu_list, local_colopts, &copts);
+}
+
+/*
+ * display menu stuff with number prefix and hotkey highlight
+ */
+static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen)
+{
+	struct string_list menu_list = STRING_LIST_INIT_DUP;
+	struct strbuf menu = STRBUF_INIT;
+	struct menu_item *menu_item;
+	struct string_list_item *string_list_item;
+	int i;
+
+	switch (stuff->type) {
+	default:
+		die("Bad type of menu_stuff when print menu");
+	case MENU_STUFF_TYPE_MENU_ITEM:
+		menu_item = (struct menu_item *)stuff->stuff;
+		for (i = 0; i < stuff->nr; i++, menu_item++) {
+			const char *p;
+			int highlighted = 0;
+
+			p = menu_item->title;
+			if ((*chosen)[i] < 0)
+				(*chosen)[i] = menu_item->selected ? 1 : 0;
+			strbuf_addf(&menu, "%s%2d: ", (*chosen)[i] ? "*" : " ", i+1);
+			for (; *p; p++) {
+				if (!highlighted && *p == menu_item->hotkey) {
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_PROMPT));
+					strbuf_addch(&menu, *p);
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_RESET));
+					highlighted = 1;
+				} else {
+					strbuf_addch(&menu, *p);
+				}
+			}
+			string_list_append(&menu_list, menu.buf);
+			strbuf_reset(&menu);
+		}
+		break;
+	case MENU_STUFF_TYPE_STRING_LIST:
+		i = 0;
+		for_each_string_list_item(string_list_item, (struct string_list *)stuff->stuff) {
+			if ((*chosen)[i] < 0)
+				(*chosen)[i] = 0;
+			strbuf_addf(&menu, "%s%2d: %s",
+				    (*chosen)[i] ? "*" : " ", i+1, string_list_item->string);
+			string_list_append(&menu_list, menu.buf);
+			strbuf_reset(&menu);
+			i++;
+		}
+		break;
+	}
+
+	pretty_print_menus(&menu_list);
+
+	strbuf_release(&menu);
+	string_list_clear(&menu_list, 0);
+}
+
+static void prompt_help_cmd(int singleton)
+{
+	clean_print_color(CLEAN_COLOR_HELP);
+	printf(singleton ?
+		  _("Prompt help:\n"
+		    "1          - select a numbered item\n"
+		    "foo        - select item based on unique prefix\n"
+		    "           - (empty) select nothing\n") :
+		  _("Prompt help:\n"
+		    "1          - select a single item\n"
+		    "3-5        - select a range of items\n"
+		    "2-3,6-9    - select multiple ranges\n"
+		    "foo        - select item based on unique prefix\n"
+		    "-...       - unselect specified items\n"
+		    "*          - choose all items\n"
+		    "           - (empty) finish selecting\n"));
+	clean_print_color(CLEAN_COLOR_RESET);
+}
+
+/*
+ * Implement a git-add-interactive compatible UI, which is borrowed
+ * from git-add--interactive.perl.
+ *
+ * Return value:
+ *
+ *   - Return an array of integers
+ *   - , and it is up to you to free the allocated memory.
+ *   - The array ends with EOF.
+ *   - If user pressed CTRL-D (i.e. EOF), no selection returned.
+ */
+static int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff)
+{
+	struct strbuf choice = STRBUF_INIT;
+	int *chosen, *result;
+	int nr = 0;
+	int eof = 0;
+	int i;
+
+	ALLOC_ARRAY(chosen, stuff->nr);
+	/* set chosen as uninitialized */
+	for (i = 0; i < stuff->nr; i++)
+		chosen[i] = -1;
+
+	for (;;) {
+		if (opts->header) {
+			printf_ln("%s%s%s",
+				  clean_get_color(CLEAN_COLOR_HEADER),
+				  _(opts->header),
+				  clean_get_color(CLEAN_COLOR_RESET));
+		}
+
+		/* chosen will be initialized by print_highlight_menu_stuff */
+		print_highlight_menu_stuff(stuff, &chosen);
+
+		if (opts->flags & MENU_OPTS_LIST_ONLY)
+			break;
+
+		if (opts->prompt) {
+			printf("%s%s%s%s",
+			       clean_get_color(CLEAN_COLOR_PROMPT),
+			       _(opts->prompt),
+			       opts->flags & MENU_OPTS_SINGLETON ? "> " : ">> ",
+			       clean_get_color(CLEAN_COLOR_RESET));
+		}
+
+		if (git_read_line_interactively(&choice) == EOF) {
+			eof = 1;
+			break;
+		}
+
+		/* help for prompt */
+		if (!strcmp(choice.buf, "?")) {
+			prompt_help_cmd(opts->flags & MENU_OPTS_SINGLETON);
+			continue;
+		}
+
+		/* for a multiple-choice menu, press ENTER (empty) will return back */
+		if (!(opts->flags & MENU_OPTS_SINGLETON) && !choice.len)
+			break;
+
+		nr = parse_choice(stuff,
+				  opts->flags & MENU_OPTS_SINGLETON,
+				  choice,
+				  &chosen);
+
+		if (opts->flags & MENU_OPTS_SINGLETON) {
+			if (nr)
+				break;
+		} else if (opts->flags & MENU_OPTS_IMMEDIATE) {
+			break;
+		}
+	}
+
+	if (eof) {
+		result = xmalloc(sizeof(int));
+		*result = EOF;
+	} else {
+		int j = 0;
+
+		/*
+		 * recalculate nr, if return back from menu directly with
+		 * default selections.
+		 */
+		if (!nr) {
+			for (i = 0; i < stuff->nr; i++)
+				nr += chosen[i];
+		}
+
+		CALLOC_ARRAY(result, st_add(nr, 1));
+		for (i = 0; i < stuff->nr && j < nr; i++) {
+			if (chosen[i])
+				result[j++] = i;
+		}
+		result[j] = EOF;
+	}
+
+	free(chosen);
+	strbuf_release(&choice);
+	return result;
+}
+
+
+
+
+
+
+
+
+
+
+
 static int sample_run(void) {
+	printf("other \n");
+	return 1;
+}
+
+static int a1(void) {
+	printf("a11! \n");
+	return 1;
+}
+
+static int a2(void) {
+	printf("a22! \n");
+	return 1;
+}
+
+static int a3(void) {
+	printf("a33! \n");
 	return 1;
 }
 
 int run(void) {
-	struct strbuf choice = STRBUF_INIT;
-	int nr = 0;
+	int i = 0;
+	int* result;
+
 
 	struct menu_opts menu_opts;
 	struct menu_stuff menu_stuff;
 	struct menu_item menus[] = {
-		{'c', "clean",			0, sample_run},
-		{'f', "filter by pattern",	0, sample_run},
-		{'s', "select by numbers",	0, sample_run},
+		{'c', "clean",			0, a1},
+		{'f', "filter by pattern",	0, a2},
+		{'s', "select by numbers",	0, a3},
 		{'a', "ask each",		0, sample_run},
 		{'q', "quit",			0, sample_run},
 		{'h', "help",			0, sample_run},
@@ -227,15 +444,17 @@ int run(void) {
 	clean_print_color(CLEAN_COLOR_HEADER);
 
 	ALLOC_ARRAY(chosen, menu_stuff.nr);
+	/* set chosen as uninitialized */
+	for (i = 0; i < menu_stuff.nr; i++)
+		chosen[i] = -1;
 
-	nr = parse_choice(&menu_stuff,
-			menu_opts.flags & MENU_OPTS_SINGLETON,
-			choice,
-			&chosen);
+	result = list_and_choose(&menu_opts, &menu_stuff);
 
-	printf("nr is %d\n", nr);
-	clean_print_color(CLEAN_COLOR_RESET);
-	printf("nr is2 %d\n", nr);
+	if (*result != EOF) {
+		int ret;
+		ret = menus[*result].fn();
+		printf("the result is %d\n", ret);
+	}
 
 	return 0;
 }

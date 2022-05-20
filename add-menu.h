@@ -2,8 +2,6 @@
 #define MENU_OPTS_IMMEDIATE		02
 #define MENU_OPTS_LIST_ONLY		04
 
-#define ERROR_BAD_MENU		-1
-
 struct menu_opts {
 	const char *header;
 	const char *prompt;
