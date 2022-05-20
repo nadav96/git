@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "add-menu.h"
 #include "builtin.h"
+#include "add-menu.h"
 #include "cache.h"
 #include "config.h"
 #include "dir.h"
@@ -12,24 +12,6 @@
 #include "pathspec.h"
 #include "help.h"
 #include "prompt.h"
-
-enum color_clean {
-	CLEAN_COLOR_RESET = 0,
-	CLEAN_COLOR_PLAIN = 1,
-	CLEAN_COLOR_PROMPT = 2,
-	CLEAN_COLOR_HEADER = 3,
-	CLEAN_COLOR_HELP = 4,
-	CLEAN_COLOR_ERROR = 5
-};
-
-//static const char *color_interactive_slots[] = {
-//	[CLEAN_COLOR_ERROR]  = "error",
-//	[CLEAN_COLOR_HEADER] = "header",
-//	[CLEAN_COLOR_HELP]   = "help",
-//	[CLEAN_COLOR_PLAIN]  = "plain",
-//	[CLEAN_COLOR_PROMPT] = "prompt",
-//	[CLEAN_COLOR_RESET]  = "reset",
-//};
 
 static int clean_use_color = -1;
 static char clean_colors[][COLOR_MAXLEN] = {
@@ -49,12 +31,12 @@ static const char *clean_get_color(enum color_clean ix)
 	return "";
 }
 
-static void clean_print_color(enum color_clean ix)
+void clean_print_color(enum color_clean ix)
 {
 	printf("%s", clean_get_color(ix));
 }
 
-int find_unique(const char *choice, struct menu_stuff *menu_stuff)
+static int find_unique(const char *choice, struct menu_stuff *menu_stuff)
 {
 	struct menu_item *menu_item;
 	struct string_list_item *string_list_item;
@@ -265,37 +247,7 @@ static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen)
 	string_list_clear(&menu_list, 0);
 }
 
-static void prompt_help_cmd(int singleton)
-{
-	clean_print_color(CLEAN_COLOR_HELP);
-	printf(singleton ?
-		  _("Prompt help:\n"
-		    "1          - select a numbered item\n"
-		    "foo        - select item based on unique prefix\n"
-		    "           - (empty) select nothing\n") :
-		  _("Prompt help:\n"
-		    "1          - select a single item\n"
-		    "3-5        - select a range of items\n"
-		    "2-3,6-9    - select multiple ranges\n"
-		    "foo        - select item based on unique prefix\n"
-		    "-...       - unselect specified items\n"
-		    "*          - choose all items\n"
-		    "           - (empty) finish selecting\n"));
-	clean_print_color(CLEAN_COLOR_RESET);
-}
-
-/*
- * Implement a git-add-interactive compatible UI, which is borrowed
- * from git-add--interactive.perl.
- *
- * Return value:
- *
- *   - Return an array of integers
- *   - , and it is up to you to free the allocated memory.
- *   - The array ends with EOF.
- *   - If user pressed CTRL-D (i.e. EOF), no selection returned.
- */
-static int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff)
+int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, void (*prompt_help_cmd)(int))
 {
 	struct strbuf choice = STRBUF_INIT;
 	int *chosen, *result;
@@ -384,77 +336,4 @@ static int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff)
 	free(chosen);
 	strbuf_release(&choice);
 	return result;
-}
-
-
-
-
-
-
-
-
-
-
-
-static int sample_run(void) {
-	printf("other \n");
-	return 1;
-}
-
-static int a1(void) {
-	printf("a11! \n");
-	return 1;
-}
-
-static int a2(void) {
-	printf("a22! \n");
-	return 1;
-}
-
-static int a3(void) {
-	printf("a33! \n");
-	return 1;
-}
-
-int run(void) {
-	int i = 0;
-	int* result;
-
-
-	struct menu_opts menu_opts;
-	struct menu_stuff menu_stuff;
-	struct menu_item menus[] = {
-		{'c', "clean",			0, a1},
-		{'f', "filter by pattern",	0, a2},
-		{'s', "select by numbers",	0, a3},
-		{'a', "ask each",		0, sample_run},
-		{'q', "quit",			0, sample_run},
-		{'h', "help",			0, sample_run},
-	};
-	int *chosen;
-
-	menu_opts.header = N_("*** Commands ***");
-	menu_opts.prompt = N_("What now");
-	menu_opts.flags = MENU_OPTS_SINGLETON;
-
-	menu_stuff.type = MENU_STUFF_TYPE_MENU_ITEM;
-	menu_stuff.stuff = menus;
-	menu_stuff.nr = sizeof(menus) / sizeof(struct menu_item);
-
-	clean_print_color(CLEAN_COLOR_HEADER);
-
-	ALLOC_ARRAY(chosen, menu_stuff.nr);
-	/* set chosen as uninitialized */
-	for (i = 0; i < menu_stuff.nr; i++)
-		chosen[i] = -1;
-
-	result = list_and_choose(&menu_opts, &menu_stuff);
-
-	if (*result != EOF) {
-		int ret;
-		ret = menus[*result].fn();
-		printf("the result is %d\n", ret);
-	}
-
-	return 0;
 }
