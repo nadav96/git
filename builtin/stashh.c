@@ -20,12 +20,14 @@ int cmd_stashh(int argc, const char **argv, const char *prefix) {
 	struct strbuf choice = STRBUF_INIT;
 	int eof = 0;
 
-	if (git_read_line_interactively(&choice) == EOF) {
-		eof = 1;
-		return 1;
-	}
+	//if (git_read_line_interactively(&choice) == EOF) {
+	//	eof = 1;
+	//	return 1;
+	//}
 
 	printf("hello world %d %s\n", eof, choice.buf);
+	
+	run();
 
 	return 0;
 }

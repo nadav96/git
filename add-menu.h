@@ -1,4 +1,3 @@
-
 #define MENU_OPTS_SINGLETON		01
 #define MENU_OPTS_IMMEDIATE		02
 #define MENU_OPTS_LIST_ONLY		04
@@ -32,3 +31,5 @@ struct menu_stuff {
 };
 
 int find_unique(const char *choice, struct menu_stuff *menu_stuff);
+
+int run(void);
