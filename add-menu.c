@@ -14,7 +14,7 @@
 #include "prompt.h"
 
 static int clean_use_color = -1;
-static char clean_colors[][COLOR_MAXLEN] = {
+static clean_color_settings clean_colors = {
 	[CLEAN_COLOR_ERROR] = GIT_COLOR_BOLD_RED,
 	[CLEAN_COLOR_HEADER] = GIT_COLOR_BOLD,
 	[CLEAN_COLOR_HELP] = GIT_COLOR_BOLD_RED,
@@ -22,7 +22,6 @@ static char clean_colors[][COLOR_MAXLEN] = {
 	[CLEAN_COLOR_PROMPT] = GIT_COLOR_BOLD_BLUE,
 	[CLEAN_COLOR_RESET] = GIT_COLOR_RESET,
 };
-
 
 static const char *clean_get_color(enum color_clean ix)
 {
@@ -247,7 +246,7 @@ static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen)
 	string_list_clear(&menu_list, 0);
 }
 
-int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, void (*prompt_help_cmd)(int))
+int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_color_settings *clean_colors, void (*prompt_help_cmd)(int))
 {
 	struct strbuf choice = STRBUF_INIT;
 	int *chosen, *result;
