@@ -16,8 +16,16 @@
 #include "prompt.h"
 #include "add-menu.h"
 
-static int sample_run(void) {
-	printf("other \n");
+static char clean_colors2[][COLOR_MAXLEN] = {
+	[CLEAN_COLOR_ERROR] = GIT_COLOR_BOLD_RED,
+	[CLEAN_COLOR_HEADER] = GIT_COLOR_BOLD,
+	[CLEAN_COLOR_HELP] = GIT_COLOR_BOLD_RED,
+	[CLEAN_COLOR_PLAIN] = GIT_COLOR_NORMAL,
+	[CLEAN_COLOR_PROMPT] = GIT_COLOR_BOLD_BLUE,
+	[CLEAN_COLOR_RESET] = GIT_COLOR_RESET,
+};
+
+static int sample_run(char (*a)[][COLOR_MAXLEN]) {
 	return 1;
 }
 
@@ -36,9 +44,14 @@ static int a3(void) {
 	return 1;
 }
 
+//static int a4(void) {
+//	printf("a22! \n");
+//	return 1;
+//}
+
 static void prompt_help_cmd(int singleton)
 {
-	clean_print_color(CLEAN_COLOR_HELP);
+	clean_print_color(CLEAN_COLOR_HELP, &clean_colors2);
 	printf(singleton ?
 		  _("Prompt help:\n"
 		    "1          - select a numbered item\n"
@@ -52,13 +65,12 @@ static void prompt_help_cmd(int singleton)
 		    "-...       - unselect specified items\n"
 		    "*          - choose all items\n"
 		    "           - (empty) finish selecting\n"));
-	clean_print_color(CLEAN_COLOR_RESET);
+	clean_print_color(CLEAN_COLOR_RESET, &clean_colors2);
 }
 
 int cmd_stashh(int argc, const char **argv, const char *prefix) {
-int i = 0;
+	int i = 0;
 	int* result;
-
 
 	struct menu_opts menu_opts;
 	struct menu_stuff menu_stuff;
@@ -66,9 +78,9 @@ int i = 0;
 		{'c', "clean",			0, a1},
 		{'f', "filter by pattern",	0, a2},
 		{'s', "select by numbers",	0, a3},
-		{'a', "ask each",		0, sample_run},
-		{'q', "quit",			0, sample_run},
-		{'h', "help",			0, sample_run},
+		{'a', "ask each",		0, a1},
+		{'q', "quit",			0, a1},
+		{'h', "help",			0, a1},
 	};
 	int *chosen;
 
@@ -80,14 +92,18 @@ int i = 0;
 	menu_stuff.stuff = menus;
 	menu_stuff.nr = sizeof(menus) / sizeof(struct menu_item);
 
-	clean_print_color(CLEAN_COLOR_HEADER);
+
+	sample_run(&clean_colors2);
+
+
+	clean_print_color(CLEAN_COLOR_HEADER, &clean_colors2);
 
 	ALLOC_ARRAY(chosen, menu_stuff.nr);
 	/* set chosen as uninitialized */
 	for (i = 0; i < menu_stuff.nr; i++)
 		chosen[i] = -1;
 
-	result = list_and_choose(&menu_opts, &menu_stuff, prompt_help_cmd);
+	result = list_and_choose(&menu_opts, &menu_stuff, &clean_colors2, prompt_help_cmd);
 
 	if (*result != EOF) {
 		int ret;

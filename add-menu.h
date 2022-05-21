@@ -39,7 +39,7 @@ struct menu_stuff {
 	void *stuff;
 };
 
-void clean_print_color(enum color_clean ix);
+void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors);
 
 /*
  * Implement a git-add-interactive compatible UI, which is borrowed

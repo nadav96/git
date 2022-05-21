@@ -14,25 +14,17 @@
 #include "prompt.h"
 
 static int clean_use_color = -1;
-static clean_color_settings clean_colors = {
-	[CLEAN_COLOR_ERROR] = GIT_COLOR_BOLD_RED,
-	[CLEAN_COLOR_HEADER] = GIT_COLOR_BOLD,
-	[CLEAN_COLOR_HELP] = GIT_COLOR_BOLD_RED,
-	[CLEAN_COLOR_PLAIN] = GIT_COLOR_NORMAL,
-	[CLEAN_COLOR_PROMPT] = GIT_COLOR_BOLD_BLUE,
-	[CLEAN_COLOR_RESET] = GIT_COLOR_RESET,
-};
 
-static const char *clean_get_color(enum color_clean ix)
+static const char *clean_get_color(enum color_clean ix, clean_color_settings *clean_colors)
 {
 	if (want_color(clean_use_color))
-		return clean_colors[ix];
+		return (*clean_colors)[ix];
 	return "";
 }
 
-void clean_print_color(enum color_clean ix)
+void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors)
 {
-	printf("%s", clean_get_color(ix));
+	printf("%s", clean_get_color(ix, clean_colors));
 }
 
 static int find_unique(const char *choice, struct menu_stuff *menu_stuff)
@@ -87,7 +79,8 @@ static int find_unique(const char *choice, struct menu_stuff *menu_stuff)
 static int parse_choice(struct menu_stuff *menu_stuff,
 			int is_single,
 			struct strbuf input,
-			int **chosen)
+			int **chosen,
+			clean_color_settings *clean_colors)
 {
 	struct strbuf **choice_list, **ptr;
 	int nr = 0;
@@ -159,9 +152,9 @@ static int parse_choice(struct menu_stuff *menu_stuff,
 
 		if (top <= 0 || bottom <= 0 || top > menu_stuff->nr || bottom > top ||
 		    (is_single && bottom != top)) {
-			clean_print_color(CLEAN_COLOR_ERROR);
+			clean_print_color(CLEAN_COLOR_ERROR, clean_colors);
 			printf(_("Huh (%s)?\n"), (*ptr)->buf);
-			clean_print_color(CLEAN_COLOR_RESET);
+			clean_print_color(CLEAN_COLOR_RESET, clean_colors);
 			continue;
 		}
 
@@ -191,7 +184,7 @@ static void pretty_print_menus(struct string_list *menu_list)
 /*
  * display menu stuff with number prefix and hotkey highlight
  */
-static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen)
+static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen, clean_color_settings *clean_colors)
 {
 	struct string_list menu_list = STRING_LIST_INIT_DUP;
 	struct strbuf menu = STRBUF_INIT;
@@ -214,9 +207,9 @@ static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen)
 			strbuf_addf(&menu, "%s%2d: ", (*chosen)[i] ? "*" : " ", i+1);
 			for (; *p; p++) {
 				if (!highlighted && *p == menu_item->hotkey) {
-					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_PROMPT));
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_PROMPT, clean_colors));
 					strbuf_addch(&menu, *p);
-					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_RESET));
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_RESET, clean_colors));
 					highlighted = 1;
 				} else {
 					strbuf_addch(&menu, *p);
@@ -262,23 +255,23 @@ int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_col
 	for (;;) {
 		if (opts->header) {
 			printf_ln("%s%s%s",
-				  clean_get_color(CLEAN_COLOR_HEADER),
+				  clean_get_color(CLEAN_COLOR_HEADER, clean_colors),
 				  _(opts->header),
-				  clean_get_color(CLEAN_COLOR_RESET));
+				  clean_get_color(CLEAN_COLOR_RESET, clean_colors));
 		}
 
 		/* chosen will be initialized by print_highlight_menu_stuff */
-		print_highlight_menu_stuff(stuff, &chosen);
+		print_highlight_menu_stuff(stuff, &chosen, clean_colors);
 
 		if (opts->flags & MENU_OPTS_LIST_ONLY)
 			break;
 
 		if (opts->prompt) {
 			printf("%s%s%s%s",
-			       clean_get_color(CLEAN_COLOR_PROMPT),
+			       clean_get_color(CLEAN_COLOR_PROMPT, clean_colors),
 			       _(opts->prompt),
 			       opts->flags & MENU_OPTS_SINGLETON ? "> " : ">> ",
-			       clean_get_color(CLEAN_COLOR_RESET));
+			       clean_get_color(CLEAN_COLOR_RESET, clean_colors));
 		}
 
 		if (git_read_line_interactively(&choice) == EOF) {
@@ -299,7 +292,8 @@ int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_col
 		nr = parse_choice(stuff,
 				  opts->flags & MENU_OPTS_SINGLETON,
 				  choice,
-				  &chosen);
+				  &chosen,
+				  clean_colors);
 
 		if (opts->flags & MENU_OPTS_SINGLETON) {
 			if (nr)
