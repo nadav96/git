@@ -13,18 +13,16 @@
 #include "help.h"
 #include "prompt.h"
 
-static int clean_use_color = -1;
-
-static const char *clean_get_color(enum color_clean ix, clean_color_settings *clean_colors)
+static const char *clean_get_color(enum color_clean ix, clean_color_settings *clean_colors, int *clean_use_color)
 {
-	if (want_color(clean_use_color))
+	if (want_color(*clean_use_color))
 		return (*clean_colors)[ix];
 	return "";
 }
 
-void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors)
+void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors, int *clean_use_color)
 {
-	printf("%s", clean_get_color(ix, clean_colors));
+	printf("%s", clean_get_color(ix, clean_colors, clean_use_color));
 }
 
 static int find_unique(const char *choice, struct menu_stuff *menu_stuff)
@@ -80,7 +78,8 @@ static int parse_choice(struct menu_stuff *menu_stuff,
 			int is_single,
 			struct strbuf input,
 			int **chosen,
-			clean_color_settings *clean_colors)
+			clean_color_settings *clean_colors,
+			int *clean_use_color)
 {
 	struct strbuf **choice_list, **ptr;
 	int nr = 0;
@@ -152,9 +151,9 @@ static int parse_choice(struct menu_stuff *menu_stuff,
 
 		if (top <= 0 || bottom <= 0 || top > menu_stuff->nr || bottom > top ||
 		    (is_single && bottom != top)) {
-			clean_print_color(CLEAN_COLOR_ERROR, clean_colors);
+			clean_print_color(CLEAN_COLOR_ERROR, clean_colors, clean_use_color);
 			printf(_("Huh (%s)?\n"), (*ptr)->buf);
-			clean_print_color(CLEAN_COLOR_RESET, clean_colors);
+			clean_print_color(CLEAN_COLOR_RESET, clean_colors, clean_use_color);
 			continue;
 		}
 
@@ -184,7 +183,7 @@ static void pretty_print_menus(struct string_list *menu_list)
 /*
  * display menu stuff with number prefix and hotkey highlight
  */
-static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen, clean_color_settings *clean_colors)
+static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen, clean_color_settings *clean_colors, int *clean_use_color)
 {
 	struct string_list menu_list = STRING_LIST_INIT_DUP;
 	struct strbuf menu = STRBUF_INIT;
@@ -207,9 +206,9 @@ static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen, c
 			strbuf_addf(&menu, "%s%2d: ", (*chosen)[i] ? "*" : " ", i+1);
 			for (; *p; p++) {
 				if (!highlighted && *p == menu_item->hotkey) {
-					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_PROMPT, clean_colors));
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_PROMPT, clean_colors, clean_use_color));
 					strbuf_addch(&menu, *p);
-					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_RESET, clean_colors));
+					strbuf_addstr(&menu, clean_get_color(CLEAN_COLOR_RESET, clean_colors, clean_use_color));
 					highlighted = 1;
 				} else {
 					strbuf_addch(&menu, *p);
@@ -239,7 +238,7 @@ static void print_highlight_menu_stuff(struct menu_stuff *stuff, int **chosen, c
 	string_list_clear(&menu_list, 0);
 }
 
-int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_color_settings *clean_colors, void (*prompt_help_cmd)(int))
+int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_color_settings *clean_colors, int *clean_use_color, void (*prompt_help_cmd)(int))
 {
 	struct strbuf choice = STRBUF_INIT;
 	int *chosen, *result;
@@ -255,23 +254,23 @@ int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_col
 	for (;;) {
 		if (opts->header) {
 			printf_ln("%s%s%s",
-				  clean_get_color(CLEAN_COLOR_HEADER, clean_colors),
+				  clean_get_color(CLEAN_COLOR_HEADER, clean_colors, clean_use_color),
 				  _(opts->header),
-				  clean_get_color(CLEAN_COLOR_RESET, clean_colors));
+				  clean_get_color(CLEAN_COLOR_RESET, clean_colors, clean_use_color));
 		}
 
 		/* chosen will be initialized by print_highlight_menu_stuff */
-		print_highlight_menu_stuff(stuff, &chosen, clean_colors);
+		print_highlight_menu_stuff(stuff, &chosen, clean_colors, clean_use_color);
 
 		if (opts->flags & MENU_OPTS_LIST_ONLY)
 			break;
 
 		if (opts->prompt) {
 			printf("%s%s%s%s",
-			       clean_get_color(CLEAN_COLOR_PROMPT, clean_colors),
+			       clean_get_color(CLEAN_COLOR_PROMPT, clean_colors, clean_use_color),
 			       _(opts->prompt),
 			       opts->flags & MENU_OPTS_SINGLETON ? "> " : ">> ",
-			       clean_get_color(CLEAN_COLOR_RESET, clean_colors));
+			       clean_get_color(CLEAN_COLOR_RESET, clean_colors, clean_use_color));
 		}
 
 		if (git_read_line_interactively(&choice) == EOF) {
@@ -293,7 +292,8 @@ int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_col
 				  opts->flags & MENU_OPTS_SINGLETON,
 				  choice,
 				  &chosen,
-				  clean_colors);
+				  clean_colors,
+				  clean_use_color);
 
 		if (opts->flags & MENU_OPTS_SINGLETON) {
 			if (nr)

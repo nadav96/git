@@ -16,6 +16,7 @@
 #include "prompt.h"
 #include "add-menu.h"
 
+int clean_use_color = -1;
 static char clean_colors2[][COLOR_MAXLEN] = {
 	[CLEAN_COLOR_ERROR] = GIT_COLOR_BOLD_RED,
 	[CLEAN_COLOR_HEADER] = GIT_COLOR_BOLD,
@@ -51,7 +52,7 @@ static int a3(void) {
 
 static void prompt_help_cmd(int singleton)
 {
-	clean_print_color(CLEAN_COLOR_HELP, &clean_colors2);
+	clean_print_color(CLEAN_COLOR_HELP, &clean_colors2, &clean_use_color);
 	printf(singleton ?
 		  _("Prompt help:\n"
 		    "1          - select a numbered item\n"
@@ -65,7 +66,7 @@ static void prompt_help_cmd(int singleton)
 		    "-...       - unselect specified items\n"
 		    "*          - choose all items\n"
 		    "           - (empty) finish selecting\n"));
-	clean_print_color(CLEAN_COLOR_RESET, &clean_colors2);
+	clean_print_color(CLEAN_COLOR_RESET, &clean_colors2, &clean_use_color);
 }
 
 int cmd_stashh(int argc, const char **argv, const char *prefix) {
@@ -96,14 +97,14 @@ int cmd_stashh(int argc, const char **argv, const char *prefix) {
 	sample_run(&clean_colors2);
 
 
-	clean_print_color(CLEAN_COLOR_HEADER, &clean_colors2);
+	clean_print_color(CLEAN_COLOR_HEADER, &clean_colors2, &clean_use_color);
 
 	ALLOC_ARRAY(chosen, menu_stuff.nr);
 	/* set chosen as uninitialized */
 	for (i = 0; i < menu_stuff.nr; i++)
 		chosen[i] = -1;
 
-	result = list_and_choose(&menu_opts, &menu_stuff, &clean_colors2, prompt_help_cmd);
+	result = list_and_choose(&menu_opts, &menu_stuff, &clean_colors2, &clean_use_color, prompt_help_cmd);
 
 	if (*result != EOF) {
 		int ret;

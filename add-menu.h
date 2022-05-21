@@ -39,7 +39,7 @@ struct menu_stuff {
 	void *stuff;
 };
 
-void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors);
+void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors, int *clean_use_color);
 
 /*
  * Implement a git-add-interactive compatible UI, which is borrowed
@@ -52,4 +52,4 @@ void clean_print_color(enum color_clean ix, clean_color_settings *clean_colors);
  *   - The array ends with EOF.
  *   - If user pressed CTRL-D (i.e. EOF), no selection returned.
  */
-int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_color_settings *clean_colors, void (*prompt_help_cmd)(int));
+int *list_and_choose(struct menu_opts *opts, struct menu_stuff *stuff, clean_color_settings *clean_colors, int *clean_use_color, void (*prompt_help_cmd)(int));
