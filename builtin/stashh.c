@@ -17,7 +17,7 @@
 #include "add-menu.h"
 
 int clean_use_color = -1;
-static char clean_colors2[][COLOR_MAXLEN] = {
+static clean_color_settings clean_colors2 = {
 	[CLEAN_COLOR_ERROR] = GIT_COLOR_BOLD_RED,
 	[CLEAN_COLOR_HEADER] = GIT_COLOR_BOLD,
 	[CLEAN_COLOR_HELP] = GIT_COLOR_BOLD_RED,
